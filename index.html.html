@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCC Case Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,600&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --honey: #C9A961;
+    --honey-deep: #B08F45;
+    --cream: #F6F0DE;
+    --cream-deep: #EDE4C8;
+    --dusty: #8CA0B3;
+    --dusty-deep: #6E869C;
+    --birch: #C9B79C;
+    --sage: #7D8A72;
+    --sage-deep: #63704F;
+    --cocoa: #6B4832;
+    --cocoa-deep: #4E3423;
+    --berry: #8C3145;
+    --berry-deep: #6E2536;
+    --ink: #3A342A;
+    --paper: #FBF8F0;
+    --radius: 10px;
+    --shadow: 0 2px 10px rgba(58,52,42,0.10);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--dusty);
+    background-image: linear-gradient(180deg, var(--dusty) 0%, var(--dusty-deep) 100%);
+    font-family: 'Source Sans 3', -apple-system, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  .shell{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 20px 40px;
+  }
+  header.top{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap: 12px;
+  }
+  .brand h1{
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-style: italic;
+    font-size: 30px;
+    color: var(--paper);
+    margin: 0;
+    letter-spacing: 0.2px;
+  }
+  .brand .tag{
+    font-size: 13px;
+    color: var(--cream);
+    opacity: 0.85;
+  }
+  .week-chip{
+    background: var(--paper);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--cocoa-deep);
+    box-shadow: var(--shadow);
+    font-weight: 600;
+  }
+  .sync-chip{
+    border: none; cursor: pointer;
+    background: var(--cream-deep);
+    color: var(--cocoa-deep);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: 'Source Sans 3', sans-serif;
+    box-shadow: var(--shadow);
+  }
+  .sync-chip.connected{ background: #DCEBD3; color: var(--sage-deep); }
+  .sync-chip.syncing{ background: var(--honey); color: var(--cocoa-deep); }
+  .sync-chip.error{ background: #F3DEE0; color: var(--berry-deep); }
+  .sync-chip.signed-in{ background: #DCEBD3; color: var(--sage-deep); }
+
+  /* Auth gate */
+  .auth-wrap{ display:flex; justify-content:center; padding: 30px 10px 10px; }
+  .auth-card{ width:100%; max-width: 380px; }
+  .auth-toggle{ display:flex; gap:6px; background: var(--cream-deep); border-radius:10px; padding:5px; margin-bottom:22px; }
+  .auth-toggle button{ flex:1; border:none; background:transparent; padding:9px; border-radius:7px; font-weight:700; font-size:13.5px; color:var(--cocoa-deep); cursor:pointer; font-family:'Source Sans 3', sans-serif;}
+  .auth-toggle button.active{ background: var(--paper); box-shadow: var(--shadow); }
+  .auth-card label{ margin-top:12px; }
+  .auth-card label:first-of-type{ margin-top:0; }
+  .auth-error{ background:#F3DEE0; color:var(--berry-deep); border-radius:8px; padding:10px 12px; font-size:13px; margin-top:14px; }
+  .auth-submit{ width:100%; margin-top:20px; padding:11px; font-size:14.5px; }
+  .config-missing{ max-width:520px; margin:40px auto; text-align:center; color:var(--cocoa-deep); }
+  .config-missing h3{ font-family:'Playfair Display', serif; margin-bottom:10px; }
+  nav.tabs{
+    display:flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    background: rgba(251,248,240,0.18);
+    padding: 6px;
+    border-radius: 12px;
+  }
+  nav.tabs button{
+    border:none;
+    background: transparent;
+    color: var(--paper);
+    font-family: 'Source Sans 3', sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  nav.tabs button:hover{ background: rgba(251,248,240,0.18); }
+  nav.tabs button.active{
+    background: var(--paper);
+    color: var(--cocoa-deep);
+  }
+  main.panel{
+    background: var(--paper);
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(30,26,20,0.20);
+    padding: 26px 26px 30px;
+    min-height: 420px;
+  }
+  .panel h2{
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 600;
+    font-size: 22px;
+    color: var(--cocoa-deep);
+    margin: 0 0 4px;
+  }
+  .panel .sub{
+    color: #7A7263;
+    font-size: 13.5px;
+    margin-bottom: 18px;
+  }
+  .toolbar{
+    display:flex;
+    justify-content: space-between;
+    align-items:center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .btn{
+    border:none;
+    cursor:pointer;
+    font-family: 'Source Sans 3', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    transition: transform .08s ease, filter .12s ease;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn-primary{ background: var(--honey); color: var(--cocoa-deep); }
+  .btn-primary:hover{ filter: brightness(1.06); }
+  .btn-ghost{ background: var(--cream-deep); color: var(--cocoa-deep); }
+  .btn-ghost:hover{ filter: brightness(0.97); }
+  .btn-danger{ background: var(--berry); color: var(--paper); }
+  .btn-sm{ padding: 6px 12px; font-size: 12.5px; }
+
+  table{ width:100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th{
+    text-align:left;
+    background: var(--cream-deep);
+    color: var(--cocoa-deep);
+    padding: 10px 10px;
+    font-weight: 700;
+    border-bottom: 2px solid var(--birch);
+    white-space: nowrap;
+    position: sticky; top: 0;
+  }
+  tbody td{
+    padding: 9px 10px;
+    border-bottom: 1px solid #EDE7D6;
+    vertical-align: top;
+  }
+  tbody tr:hover{ background: #FBF6E8; }
+  .table-wrap{ overflow-x:auto; border-radius: 8px; border: 1px solid #EDE7D6; max-height: 520px; overflow-y:auto;}
+
+  .badge{ display:inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .badge-yes{ background: #E4EADD; color: var(--sage-deep); }
+  .badge-no{ background: #F3DEE0; color: var(--berry-deep); }
+  .badge-neutral{ background: var(--cream-deep); color: var(--cocoa-deep); }
+  .progress-wrap{ display:flex; align-items:center; gap:8px; }
+  .progress-track{ width: 74px; height: 8px; background: #EDE7D6; border-radius: 999px; overflow:hidden; }
+  .progress-fill{ height:100%; background: var(--sage); }
+  .progress-fill.low{ background: var(--berry); }
+  .progress-fill.mid{ background: var(--honey-deep); }
+
+  .empty{
+    text-align:center;
+    padding: 40px 20px;
+    color: #8A8272;
+  }
+  .empty .big{ font-family:'Playfair Display', serif; font-style: italic; font-size: 19px; color: var(--cocoa); display:block; margin-bottom:6px;}
+
+  /* Modal */
+  .overlay{
+    position: fixed; inset:0; background: rgba(30,26,20,0.45);
+    display:flex; align-items:center; justify-content:center; z-index: 50;
+    padding: 20px;
+  }
+  .modal{
+    background: var(--paper); border-radius: 12px; width: 100%; max-width: 640px;
+    max-height: 88vh; overflow-y:auto; padding: 24px 26px 26px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+  }
+  .modal h3{ font-family:'Playfair Display', serif; color: var(--cocoa-deep); margin: 0 0 16px; font-size: 20px;}
+  .form-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .form-grid .full{ grid-column: 1 / -1; }
+  label{ font-size: 12.5px; font-weight: 700; color: var(--cocoa-deep); display:block; margin-bottom: 4px; }
+  input[type=text], input[type=number], input[type=date], select, textarea{
+    width:100%; padding: 8px 10px; border-radius: 7px; border: 1.5px solid #DDD3BB;
+    font-family: 'Source Sans 3', sans-serif; font-size: 13.5px; background: #fff; color: var(--ink);
+  }
+  textarea{ resize: vertical; min-height: 54px; }
+  input:focus, select:focus, textarea:focus{ outline: 2px solid var(--honey); border-color: var(--honey); }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top: 22px; }
+  .field-note{ font-size: 11px; color:#8A8272; margin-top:3px; }
+
+  /* Dashboard */
+  .stat-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 14px; margin-bottom: 22px;}
+  .stat-card{ background: var(--cream); border-radius: 10px; padding: 16px 16px 14px; border: 1px solid var(--cream-deep);}
+  .stat-card .subject{ font-weight: 700; color: var(--cocoa-deep); font-size: 14px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;}
+  .stat-card .pct{ font-family:'Playfair Display', serif; font-size: 30px; color: var(--cocoa); line-height:1;}
+  .stat-card .breakdown{ font-size: 12px; color:#7A7263; margin-top: 6px;}
+  .stat-card .bar{ height:7px; background:#EDE7D6; border-radius:999px; margin-top:10px; overflow:hidden;}
+  .stat-card .bar-fill{ height:100%; background: var(--sage);}
+  .pill-row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 22px;}
+  .pill{ background: var(--dusty); color:#fff; padding: 10px 16px; border-radius: 10px; font-size:13px; font-weight:600; display:flex; gap:8px; align-items:center;}
+  .pill b{ font-family:'Playfair Display', serif; font-size:17px; font-weight:700;}
+  .section-title{ font-family:'Playfair Display', serif; font-size:16px; color:var(--cocoa-deep); margin: 26px 0 10px; font-style:italic;}
+
+  /* Weekly overview lists */
+  .week-range{ font-size:13px; color:#7A7263; margin-bottom:16px;}
+  .list-card{ background: var(--cream); border:1px solid var(--cream-deep); border-radius:10px; padding: 4px 0; margin-bottom: 10px;}
+  .list-row{ display:flex; justify-content:space-between; gap:12px; padding: 10px 16px; border-bottom:1px solid #EDE4C8; font-size:13.5px;}
+  .list-row:last-child{ border-bottom:none; }
+  .list-row .name{ font-weight:700; color:var(--cocoa-deep);}
+  .list-row .meta{ color:#7A7263; font-size:12.5px;}
+
+  /* Checklist tab */
+  .checklist-patient{ background: var(--cream); border:1px solid var(--cream-deep); border-radius:10px; margin-bottom:12px; overflow:hidden;}
+  .checklist-patient-head{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px; cursor:pointer;}
+  .checklist-patient-head:hover{ background: var(--cream-deep); }
+  .checklist-patient-head .name{ font-weight:700; color:var(--cocoa-deep); font-size:15px;}
+  .checklist-patient-head .meta{ color:#7A7263; font-size:12.5px; margin-top:2px;}
+  .checklist-pct{ font-family:'Playfair Display', serif; font-size:18px; color:var(--cocoa);}
+  .checklist-body{ padding: 4px 18px 16px; border-top:1px solid var(--cream-deep);}
+  .checklist-section{ margin-top:14px; }
+  .checklist-section h4{ font-size:12.5px; text-transform:none; color:var(--cocoa-deep); margin:0 0 6px; font-weight:700; border-bottom:1px solid var(--birch); padding-bottom:4px;}
+  .checklist-item{ display:flex; align-items:flex-start; gap:9px; padding:5px 0; font-size:13px;}
+  .checklist-item input{ margin-top:3px; width:16px; height:16px; accent-color: var(--sage-deep); flex-shrink:0;}
+  .checklist-item label{ font-weight:400; color:var(--ink); font-size:13px; cursor:pointer; }
+  .chevron{ transition: transform .15s ease; color: var(--cocoa); }
+  .chevron.open{ transform: rotate(90deg); }
+
+  /* Settings modal */
+  .status-line{ display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:14px; padding:10px 12px; border-radius:8px; background:var(--cream);}
+  .status-dot{ width:9px; height:9px; border-radius:50%; background:#999; }
+  .status-dot.connected{ background: var(--sage-deep); }
+  .status-dot.error{ background: var(--berry); }
+  .status-dot.syncing{ background: var(--honey-deep); }
+
+  footer.credit{
+    text-align:center;
+    margin-top: 28px;
+    padding: 18px 10px 6px;
+    color: var(--cream);
+    opacity: 0.9;
+  }
+  footer.credit .names{
+    font-family:'Playfair Display', serif;
+    font-style: italic;
+    font-size: 16px;
+    letter-spacing: 0.3px;
+  }
+  footer.credit .divider{
+    width: 46px; height:2px; background: var(--honey); margin: 10px auto 12px; border-radius:2px;
+  }
+  footer.credit .sub{ font-size: 11.5px; opacity: 0.75; }
+
+  select.doc-status option[value="Done"]{ color: var(--sage-deep); }
+
+  @media (max-width: 640px){
+    .form-grid{ grid-template-columns: 1fr; }
+    .panel{ padding: 18px 16px 22px; }
+    .brand h1{ font-size:24px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="top">
+    <div class="brand">
+      <h1>CCC Case Tracker</h1>
+      <span class="tag">clinical case &amp; requirements manager</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button class="sync-chip" id="authChip">&#9679; Loading&hellip;</button>
+      <div class="week-chip" id="weekChip">Loading week&hellip;</div>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="patients" class="active">Patients</button>
+    <button data-tab="appointments">Appointments</button>
+    <button data-tab="cases">Cases</button>
+    <button data-tab="checklist">CCC Checklist</button>
+    <button data-tab="dashboard">Requirement Dashboard</button>
+    <button data-tab="weekly">Weekly Overview</button>
+  </nav>
+
+  <main class="panel" id="panel">
+    <!-- rendered by JS -->
+  </main>
+
+  <footer class="credit">
+    <div class="names">rAnad &amp; Claude</div>
+    <div class="divider"></div>
+    <div class="sub">Built together, one case at a time</div>
+  </footer>
+</div>
+
+<script>
+/* ============================= CONFIG =============================
+   Fill these in with YOUR Supabase project's values (Settings > API)
+   before sharing this file with your 50 users. The anon key is safe to
+   expose publicly — Row Level Security (RLS) is what actually protects
+   each person's data, not secrecy of this key. See the Supabase Setup
+   Guide for the exact steps and the SQL that creates this isolation.
+*/
+const SUPABASE_URL = "https://hpnsreglybrpxpvsympj.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwbnNyZWdseWJycHhwdnN5bXBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0ODIxNTIsImV4cCI6MjEwNTA1ODE1Mn0.EDUomLXq6sgbl_lQeHf-wzRUneWtNECHzwRHHWBgIzE";
+const APP_CONFIGURED = Boolean(
+  SUPABASE_URL &&
+  SUPABASE_ANON_KEY &&
+  !SUPABASE_URL.includes('YOUR_SUPABASE_URL') &&
+  !SUPABASE_ANON_KEY.includes('YOUR_SUPABASE_ANON_KEY')
+);
+
+/* ============================= DATA MODEL ============================= */
+const SUBJECTS = ["Fixed","Perio","Removable","Surgery","Pedo","Operative","Endo"];
+const CCC_SUBJECTS = ["Fixed","Perio","Removable","Operative","Endo"];
+
+const CHECKLIST_SECTIONS = [
+  { title: "Case Approval & Patient History", items: [
+    "Sign case approval paper form",
+    "Chief complaint & history of chief complaint in R4",
+    "Medical history, medications & allergies & hospitalization & vital signs, ASA R4",
+    "Social history (smoking, type, frequency, duration) & habits in R4",
+    "Family history in R4",
+    "Dental history in R4",
+  ]},
+  { title: "Clinical Examination", items: [
+    "Hard & soft tissue charting in R4",
+    "Preoperative radiographs in R4 (Pan, FMX)",
+    "Preoperative photographs (Extra-oral 5, Soft tissue 13, Intra-oral 5)",
+    "Oral medicine clearance in case approval form",
+    "Oral radiology report in R4 & clearance in case approval form",
+    "Mounted study casts (primary impression, bite registration, face bow)",
+    "Periodontal diagnosis in R4",
+    "Caries diagnosis R4 and Google form",
+    "Caries risk assessment R4 and Google form",
+    "Assessment of existing restoration R4 and Google form",
+    "Endodontic assessment in R4 and Form",
+    "Occlusal analysis in R4 (done on cast and photos)",
+    "Smile analysis in R4 (done on cast and photos)",
+    "Assessment of existing fixed prosthesis in R4",
+    "Assessment of existing removable prosthesis in R4",
+    "Evaluation of partially edentulous patient in R4",
+    "Consultations",
+  ]},
+  { title: "Treatment Planning", items: [
+    "Initial treatment plan (fill-in template, print out, sign)",
+    "Informed consent paper form signed by patient",
+    "Treatment plan codes in R4 by UGP",
+    "Approval on comprehensive initial treatment plan (mandatory before starting, except emergencies/scaling) from UGP",
+  ]},
+  { title: "Documentation & Reporting", items: [
+    "All treatment procedures reported in progress notes & code closed in R4",
+    "MPEs & CCEs submission according to discipline directors' instructions",
+    "Case progress report submission (Google Form)",
+    "Final treatment plan (fill-in template, print out, sign)",
+    "Final case evaluation by UGP",
+    "Final progress report (case closure) submission via Google Form",
+  ]},
+];
+const CHECKLIST_FLAT = CHECKLIST_SECTIONS.flatMap(s=>s.items); // 33 items, index-aligned with the backend
+
+const PROCEDURE_OPTIONS = {
+  Fixed: ["Unit","Half Unit"],
+  Perio: ["Scaling & Root Planing","Perio Maintenance","Other Perio Procedure"],
+  Removable: ["Definitive RPD Delivered","Single Arch CD Delivered","Transitional Appliance Delivered","CD Both Arches Delivered"],
+  Surgery: ["Extraction","Surgical Procedure","Other Surgery"],
+  Pedo: ["Pedo Procedure"],
+  Operative: ["Class I","Class II","Class III","Class IV","Class V","PRR","Preventive","Others"],
+  Endo: ["RCT","Emergency (ER) - 1st Molar","Emergency (ER) - Other Tooth"]
+};
+
+let DB = { patients: [], appointments: [], cases: [], checklists: {} };
+let activeTab = "patients";
+let editingModal = null; // {type:'patient'|'appointment'|'case', id: string|null}
+let supabaseClient = null;
+let currentUser = null;       // { id, email } once signed in
+let authStatus = "loading";   // 'loading' | 'signed_out' | 'signed_in' | 'error'
+let authError = "";
+let authFormMode = "signin";  // 'signin' | 'signup'
+let syncStatus = "idle";      // 'idle' | 'syncing' | 'error'
+let syncError = "";
+let shellLoadToken = 0;
+
+/* ============================= AUTH SESSION STORAGE =============================
+   Supabase normally persists the login session in localStorage, which is not
+   allowed inside Claude artifacts. We use window.storage when it's available
+   (previewing inside Claude), and fall back to an in-memory store otherwise
+   (e.g. if you've exported this file and host it yourself — in that case you
+   can swap this adapter for plain localStorage so logins survive a refresh;
+   look for authStorage below).
+*/
+const memoryAuthStore = {};
+const authStorage = {
+  async getItem(key){
+    const storageKey = 'ccc-sb-auth-' + key;
+    try{
+      if(window.storage){
+        const res = await window.storage.get(storageKey, false);
+        if(res && res.value != null) return res.value;
+      }
+    }catch(e){}
+    try{
+      const value = window.localStorage.getItem(storageKey);
+      if(value != null) return value;
+    }catch(e){}
+    return memoryAuthStore[key] || null;
+  },
+  async setItem(key, value){
+    const storageKey = 'ccc-sb-auth-' + key;
+    let saved = false;
+    try{
+      if(window.storage){ await window.storage.set(storageKey, value, false); saved = true; }
+    }catch(e){}
+    if(!saved){
+      try{ window.localStorage.setItem(storageKey, value); saved = true; }catch(e){}
+    }
+    if(!saved) memoryAuthStore[key] = value;
+  },
+  async removeItem(key){
+    const storageKey = 'ccc-sb-auth-' + key;
+    try{ if(window.storage) await window.storage.delete(storageKey, false); }catch(e){}
+    try{ window.localStorage.removeItem(storageKey); }catch(e){}
+    delete memoryAuthStore[key];
+  }
+};
+
+function initSupabaseClient(){
+  if(!APP_CONFIGURED || !window.supabase){ supabaseClient = null; return; }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+  });
+  supabaseClient.auth.onAuthStateChange((event, session)=>{
+    if(session && session.user){
+      currentUser = session.user;
+      authStatus = 'signed_in';
+    } else {
+      currentUser = null;
+      authStatus = 'signed_out';
+    }
+    renderShell();
+  });
+}
+
+async function checkSession(){
+  if(!supabaseClient){ authStatus = 'signed_out'; return; }
+  try{
+    const { data, error } = await supabaseClient.auth.getSession();
+    if(error) throw error;
+    if(data.session && data.session.user){
+      currentUser = data.session.user;
+      authStatus = 'signed_in';
+    } else {
+      authStatus = 'signed_out';
+    }
+  }catch(err){
+    authStatus = 'error'; authError = String(err.message || err);
+  }
+}
+
+async function signUp(email, password){
+  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+  if(error) throw error;
+  return data;
+}
+async function signIn(email, password){
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if(error) throw error;
+  currentUser = data.user;
+  authStatus = 'signed_in';
+  return data;
+}
+async function signOutUser(){
+  try{ await supabaseClient.auth.signOut(); }catch(e){}
+  currentUser = null;
+  authStatus = 'signed_out';
+  shellLoadToken++;
+  DB = { patients: [], appointments: [], cases: [], checklists: {} };
+}
+
+/* ============================= LOCAL CACHE (per signed-in user) ============================= */
+async function loadDB(){
+  if(!currentUser) return;
+  const key = 'ccc-db-' + currentUser.id;
+  let raw = null;
+  try{
+    if(window.storage){
+      const res = await window.storage.get(key, false);
+      if(res && res.value) raw = res.value;
+    }
+  }catch(err){}
+  if(!raw){
+    try{ raw = window.localStorage.getItem(key); }catch(err){}
+  }
+  if(raw){
+    try{ DB = JSON.parse(raw); }catch(err){ console.warn('Could not parse local cache:', err); }
+  }
+  DB.patients = Array.isArray(DB.patients) ? DB.patients : [];
+  DB.appointments = Array.isArray(DB.appointments) ? DB.appointments : [];
+  DB.cases = Array.isArray(DB.cases) ? DB.cases : [];
+  DB.checklists = DB.checklists && typeof DB.checklists === 'object' ? DB.checklists : {};
+}
+async function saveDB(){
+  if(!currentUser) return;
+  const key = 'ccc-db-' + currentUser.id;
+  const value = JSON.stringify(DB);
+  let saved = false;
+  try{
+    if(window.storage){ await window.storage.set(key, value, false); saved = true; }
+  }catch(err){}
+  if(!saved){
+    try{ window.localStorage.setItem(key, value); saved = true; }catch(err){}
+  }
+}
+
+/* ---- Field mapping: app (camelCase) <-> Supabase (snake_case) ---- */
+function patientToRow(p){
+  return {
+    id: p.id, user_id: currentUser ? currentUser.id : null, name: p.name, identification: p.identification,
+    examination: p.examination, radiology: p.radiology, photographs: p.photographs,
+    fixed_planned: p.fixedPlanned, perio_status: p.perioStatus, removable_type: p.removableType,
+    surgery: p.surgery, pedo: p.pedo,
+    operative_surfaces: Number(p.operativeSurfaces)||0, operative_class_count: Number(p.operativeClassCount)||0,
+    endo_planned: p.endoPlanned, oral_med_clearance: p.oralMedClearance,
+    comment: p.comment, last_updated: p.lastUpdated,
+  };
+}
+function rowToPatient(row){
+  return {
+    id: row.id, name: row.name, identification: row.identification,
+    examination: row.examination, radiology: row.radiology, photographs: row.photographs,
+    fixedPlanned: row.fixed_planned, perioStatus: row.perio_status, removableType: row.removable_type,
+    surgery: row.surgery, pedo: row.pedo,
+    operativeSurfaces: row.operative_surfaces, operativeClassCount: row.operative_class_count,
+    endoPlanned: row.endo_planned, oralMedClearance: row.oral_med_clearance,
+    comment: row.comment, lastUpdated: row.last_updated,
+  };
+}
+function appointmentToRow(a){
+  return {
+    id: a.id, user_id: currentUser ? currentUser.id : null, patient_id: a.patientId, day_date: a.dayDate || null, session: a.session, came: a.came,
+    subject: a.subject, procedure: a.procedure, status: a.status,
+    next_visit: a.nextVisit || null, next_procedure: a.nextProcedure, comment: a.comment,
+  };
+}
+function rowToAppointment(row){
+  return {
+    id: row.id, patientId: row.patient_id, dayDate: row.day_date || '', session: row.session, came: row.came,
+    subject: row.subject, procedure: row.procedure, status: row.status,
+    nextVisit: row.next_visit || '', nextProcedure: row.next_procedure, comment: row.comment,
+  };
+}
+function caseToRow(c){
+  return {
+    patient_id: c.patientId, user_id: currentUser ? currentUser.id : null, preliminary: c.preliminary, phase1: c.phase1, phase2: c.phase2,
+    phase3: c.phase3, phase4: c.phase4, doc1: c.doc1, doc2: c.doc2, doc3: c.doc3, doc4: c.doc4,
+    comments: c.comments,
+  };
+}
+function rowToCase(row){
+  return {
+    patientId: row.patient_id, preliminary: row.preliminary, phase1: row.phase1, phase2: row.phase2,
+    phase3: row.phase3, phase4: row.phase4, doc1: row.doc1, doc2: row.doc2, doc3: row.doc3, doc4: row.doc4,
+    comments: row.comments,
+  };
+}
+
+/* ---- Supabase sync (optional) ---- */
+async function refreshFromSupabase(){
+  if(!supabaseClient || !currentUser || authStatus !== 'signed_in') return;
+  syncStatus = 'syncing'; renderAuthChip();
+  try{
+    const [pRes, aRes, cRes, chRes] = await Promise.all([
+      supabaseClient.from('patients').select('*'),
+      supabaseClient.from('appointments').select('*'),
+      supabaseClient.from('cases').select('*'),
+      supabaseClient.from('checklists').select('*'),
+    ]);
+    if(pRes.error) throw pRes.error;
+    if(aRes.error) throw aRes.error;
+    if(cRes.error) throw cRes.error;
+    if(chRes.error) throw chRes.error;
+
+    DB.patients = (pRes.data || []).map(rowToPatient);
+    DB.appointments = (aRes.data || []).map(rowToAppointment);
+    DB.cases = (cRes.data || []).map(rowToCase);
+    DB.checklists = {};
+    (chRes.data || []).forEach(row=>{ DB.checklists[row.patient_id] = row.items || []; });
+
+    await saveDB();
+    syncStatus = 'connected'; syncError = '';
+  }catch(err){
+    syncStatus = 'error'; syncError = String(err.message || err);
+  }
+  renderAuthChip();
+}
+
+async function pushToSupabase(action, payload){
+  if(!supabaseClient) return;
+  syncStatus = 'syncing'; renderAuthChip();
+  try{
+    switch(action){
+      case 'savePatient':
+        { const { error } = await supabaseClient.from('patients').upsert(patientToRow(payload), { onConflict: 'id,user_id' }); if(error) throw error; }
+        break;
+      case 'deletePatient':
+        { const { error } = await supabaseClient.from('patients').delete().eq('id', payload.id); if(error) throw error; }
+        break;
+      case 'saveAppointment':
+        { const { error } = await supabaseClient.from('appointments').upsert(appointmentToRow(payload), { onConflict: 'id,user_id' }); if(error) throw error; }
+        break;
+      case 'deleteAppointment':
+        { const { error } = await supabaseClient.from('appointments').delete().eq('id', payload.id); if(error) throw error; }
+        break;
+      case 'saveCase':
+        { const { error } = await supabaseClient.from('cases').upsert(caseToRow(payload), { onConflict: 'patient_id,user_id' }); if(error) throw error; }
+        break;
+      case 'saveChecklist':
+        { const { error } = await supabaseClient.from('checklists').upsert({ patient_id: payload.patientId, user_id: currentUser ? currentUser.id : null, items: payload.items }, { onConflict: 'patient_id,user_id' }); if(error) throw error; }
+        break;
+    }
+    syncStatus = 'connected'; syncError = '';
+  }catch(err){
+    syncStatus = 'error'; syncError = String(err.message || err);
+  }
+  renderAuthChip();
+}
+
+/* ============================= UTIL ============================= */
+function uid(prefix){
+  return prefix + '-' + Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
+}
+function todayISO(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function fmtDate(d){
+  if(!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric'});
+}
+function patientById(id){ return DB.patients.find(p=>p.id===id); }
+function patientName(id){ const p = patientById(id); return p ? p.name : '(unknown)'; }
+
+function startOfCurrentWeek(){
+  // Week starts on Sunday
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun..6=Sat
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()-day);
+}
+function endOfCurrentWeek(){
+  const s = startOfCurrentWeek();
+  return new Date(s.getFullYear(), s.getMonth(), s.getDate()+6);
+}
+function isInCurrentWeek(dateStr){
+  if(!dateStr) return false;
+  const d = new Date(dateStr + 'T00:00:00');
+  const s = startOfCurrentWeek(); const e = endOfCurrentWeek();
+  return d >= s && d <= e;
+}
+
+/* ============================= COMPUTED REQUIREMENTS ============================= */
+function fixedCompletedCount(patientId){
+  // A "Unit" counts as 1, a "Half Unit" counts as 0.5
+  return DB.appointments
+    .filter(a=>a.patientId===patientId && a.subject==='Fixed' && a.status==='Completed')
+    .reduce((sum,a)=> sum + (a.procedure==='Half Unit' ? 0.5 : 1), 0);
+}
+function endoCompleted(patientId){
+  return DB.appointments.some(a=>a.patientId===patientId && a.subject==='Endo' && a.status==='Completed' &&
+    (a.procedure==='RCT' || a.procedure==='Emergency (ER) - 1st Molar'));
+}
+function presenceChecks(p){
+  // Counts whether each of the 5 CCC disciplines is PRESENT in this case's plan,
+  // not whether it has fully met its completion minimum.
+  const fixedPresent = !!p.fixedPlanned && p.fixedPlanned !== '0';
+  const perioPresent = p.perioStatus === 'Present';
+  const removablePresent = !!p.removableType && p.removableType !== 'None';
+  const operativePresent = (Number(p.operativeSurfaces)||0) > 0 || (Number(p.operativeClassCount)||0) > 0;
+  const endoPresent = !!p.endoPlanned && p.endoPlanned !== 'None';
+  return { Fixed: fixedPresent, Perio: perioPresent, Removable: removablePresent, Operative: operativePresent, Endo: endoPresent };
+}
+function cccEligibility(p){
+  const checks = presenceChecks(p);
+  const count = Object.values(checks).filter(Boolean).length;
+  return { count, pct: Math.round((count/5)*100), checks };
+}
+
+/* ============================= RENDER ROOT ============================= */
+function render(){
+  document.querySelectorAll('#tabs button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab === activeTab);
+  });
+  const panel = document.getElementById('panel');
+  if(activeTab==='patients') panel.innerHTML = renderPatients();
+  if(activeTab==='appointments') panel.innerHTML = renderAppointments();
+  if(activeTab==='cases') panel.innerHTML = renderCases();
+  if(activeTab==='checklist') panel.innerHTML = renderChecklist();
+  if(activeTab==='dashboard') panel.innerHTML = renderDashboard();
+  if(activeTab==='weekly') panel.innerHTML = renderWeekly();
+  attachPanelHandlers();
+  renderModal();
+  updateWeekChip();
+  renderAuthChip();
+}
+function updateWeekChip(){
+  const m = startOfCurrentWeek(), s = endOfCurrentWeek();
+  const fmt = (d)=>d.toLocaleDateString('en-US',{month:'short', day:'numeric'});
+  document.getElementById('weekChip').textContent = `Week of ${fmt(m)} – ${fmt(s)}`;
+}
+function renderAuthChip(){
+  const chip = document.getElementById('authChip');
+  if(!chip) return;
+  chip.classList.remove('signed-in','syncing','error');
+  chip.title = '';
+  if(!APP_CONFIGURED){
+    chip.textContent = '\u25CF Not configured';
+  } else if(authStatus==='loading'){
+    chip.textContent = '\u25CF Loading\u2026';
+  } else if(authStatus==='signed_in'){
+    chip.classList.add(syncStatus==='error' ? 'error' : (syncStatus==='syncing' ? 'syncing' : 'signed-in'));
+    chip.textContent = syncStatus==='syncing' ? '\u25CF Syncing\u2026' : ('\u25CF ' + (currentUser ? currentUser.email : 'Signed in') + ' · Sign out');
+    if(syncStatus==='error' && syncError) chip.title = syncError;
+  } else {
+    chip.textContent = '\u25CF Not signed in';
+  }
+}
+document.getElementById('authChip').addEventListener('click', async ()=>{
+  if(authStatus==='signed_in'){
+    if(confirm('Sign out? Your data stays safely in Supabase \u2014 you can sign back in any time.')){
+      await signOutUser();
+      renderShell();
+    }
+  }
+});
+
+/* ============================= TOP-LEVEL SHELL (config / auth gate / app) ============================= */
+function renderShell(){
+  renderAuthChip();
+  const nav = document.getElementById('tabs');
+  const panel = document.getElementById('panel');
+
+  if(!APP_CONFIGURED){
+    nav.style.display = 'none';
+    panel.innerHTML = `<div class="config-missing">
+      <h3>Almost there</h3>
+      <p>This app hasn't been connected to a database yet. If you're the app owner, add your Supabase Project URL and anon key at the top of the file (look for SUPABASE_URL / SUPABASE_ANON_KEY) and re-share it. If someone shared this app with you, let them know it still needs setup.</p>
+    </div>`;
+    return;
+  }
+
+  if(authStatus==='loading'){
+    nav.style.display = 'none';
+    panel.innerHTML = `<div class="config-missing"><h3>Loading\u2026</h3></div>`;
+    return;
+  }
+
+  if(authStatus!=='signed_in'){
+    nav.style.display = 'none';
+    panel.innerHTML = renderAuthForm();
+    attachAuthHandlers();
+    return;
+  }
+
+  // signed in: show the normal tabbed app
+  nav.style.display = 'flex';
+  const token = ++shellLoadToken;
+  (async ()=>{
+    await loadDB();
+    if(token !== shellLoadToken || authStatus !== 'signed_in') return;
+    render();
+    await refreshFromSupabase();
+    if(token === shellLoadToken && authStatus === 'signed_in') render();
+  })();
+}
+
+function renderAuthForm(){
+  const isSignup = authFormMode === 'signup';
+  return `<div class="auth-wrap"><div class="auth-card">
+    <div class="auth-toggle">
+      <button id="tabSignin" class="${!isSignup?'active':''}">Log In</button>
+      <button id="tabSignup" class="${isSignup?'active':''}">Sign Up</button>
+    </div>
+    <h2 style="margin-bottom:4px;">${isSignup ? 'Create your account' : 'Welcome back'}</h2>
+    <div class="sub">${isSignup ? 'Your own private patient list \u2014 no one else can see it.' : 'Log in to see your patients and cases.'}</div>
+    <label>Email</label>
+    <input type="text" id="auth-email" placeholder="you@example.com">
+    <label>Password</label>
+    <input type="password" id="auth-password" placeholder="${isSignup ? 'At least 6 characters' : 'Your password'}">
+    ${authStatus==='error' ? `<div class="auth-error">${escapeHtml(authError)}</div>` : ''}
+    <button class="btn btn-primary auth-submit" id="authSubmitBtn">${isSignup ? 'Create Account' : 'Log In'}</button>
+  </div></div>`;
+}
+
+function attachAuthHandlers(){
+  const tabSignin = document.getElementById('tabSignin');
+  const tabSignup = document.getElementById('tabSignup');
+  if(tabSignin) tabSignin.onclick = ()=>{ authFormMode='signin'; authStatus='signed_out'; authError=''; renderShell(); };
+  if(tabSignup) tabSignup.onclick = ()=>{ authFormMode='signup'; authStatus='signed_out'; authError=''; renderShell(); };
+
+  const btn = document.getElementById('authSubmitBtn');
+  if(!btn) return;
+  btn.onclick = async ()=>{
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    if(!email || !password){ authStatus='error'; authError='Enter both an email and a password.'; renderShell(); return; }
+    btn.disabled = true; btn.textContent = 'Please wait\u2026';
+    try{
+      if(authFormMode==='signup'){
+        const data = await signUp(email, password);
+        if(data.session){
+          currentUser = data.user; authStatus='signed_in';
+        } else {
+          // email confirmation required by this Supabase project's settings
+          authStatus='error';
+          authError='Account created! Check your email to confirm it, then log in.';
+          authFormMode='signin';
+        }
+      } else {
+        await signIn(email, password);
+      }
+    }catch(err){
+      authStatus = 'error';
+      authError = String(err.message || err);
+    }
+    renderShell();
+  };
+}
+
+
+/* ============================= PATIENTS TAB ============================= */
+function renderPatients(){
+  const rows = DB.patients.map(p=>{
+    const {count, pct} = cccEligibility(p);
+    const barClass = count>=3 ? '' : (count>=2 ? 'mid' : 'low');
+    return `<tr>
+      <td><strong>${escapeHtml(p.id)}</strong></td>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${escapeHtml(p.identification||'—')}</td>
+      <td>${badge(p.examination==='Done','Done','Not Yet')}</td>
+      <td>${badge(p.radiology==='Yes')}</td>
+      <td>${badge(p.photographs==='Yes')}</td>
+      <td>${badge(p.oralMedClearance==='Yes')}</td>
+      <td>${p.fixedPlanned||'—'} / <em>${fixedCompletedCount(p.id)} done</em></td>
+      <td>${badgeNeutral(p.perioStatus)}</td>
+      <td>${badgeNeutral(p.removableType)}</td>
+      <td>${badge(p.surgery==='Yes')}</td>
+      <td>${badge(p.pedo==='Yes')}</td>
+      <td>${p.operativeSurfaces||0} srf / ${p.operativeClassCount||0} cls</td>
+      <td>${badgeNeutral(p.endoPlanned)} ${endoCompleted(p.id)?'<span class="badge badge-yes">done</span>':''}</td>
+      <td>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill ${barClass}" style="width:${pct}%"></div></div>
+          <span>${count}/5</span>
+        </div>
+      </td>
+      <td>
+        <button class="btn btn-ghost btn-sm" data-edit-patient="${p.id}">Edit</button>
+        <button class="btn btn-danger btn-sm" data-del-patient="${p.id}">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <h2>Patients</h2>
+    <div class="sub">Master list — pre-treatment plan per discipline, plus live CCC Eligibility.</div>
+    <div class="toolbar">
+      <div></div>
+      <button class="btn btn-primary" id="addPatientBtn">+ Add Patient</button>
+    </div>
+    ${DB.patients.length===0 ? emptyState('No patients yet','Add your first patient to start tracking their case.') : `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>ID</th><th>Name</th><th>ID#</th><th>Exam</th><th>Radiology</th><th>Photos</th><th>Oral Med</th>
+          <th>Fixed</th><th>Perio</th><th>Removable</th><th>Surgery</th><th>Pedo</th>
+          <th>Operative</th><th>Endo</th><th>CCC Eligibility</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+/* ============================= APPOINTMENTS TAB ============================= */
+function renderAppointments(){
+  const sorted = [...DB.appointments].sort((a,b)=> (b.dayDate||'').localeCompare(a.dayDate||''));
+  const rows = sorted.map(a=>`
+    <tr>
+      <td><strong>${escapeHtml(a.id)}</strong></td>
+      <td>${escapeHtml(a.patientId)}</td>
+      <td>${escapeHtml(patientName(a.patientId))}</td>
+      <td>${fmtDate(a.dayDate)}</td>
+      <td>${escapeHtml(a.session||'—')}</td>
+      <td>${escapeHtml(a.came||'—')}</td>
+      <td><span class="badge badge-neutral">${escapeHtml(a.subject||'—')}</span></td>
+      <td>${escapeHtml(a.procedure||'—')}</td>
+      <td>${statusBadge(a.status)}</td>
+      <td>${fmtDate(a.nextVisit)}</td>
+      <td>${escapeHtml(a.nextProcedure||'—')}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" data-edit-appt="${a.id}">Edit</button>
+        <button class="btn btn-danger btn-sm" data-del-appt="${a.id}">Delete</button>
+      </td>
+    </tr>`).join('');
+
+  return `
+    <h2>Appointments</h2>
+    <div class="sub">Daily log — tagging each visit with a Subject drives the Patients auto-calculations.</div>
+    <div class="toolbar">
+      <div></div>
+      <button class="btn btn-primary" id="addApptBtn" ${DB.patients.length===0?'disabled title="Add a patient first"':''}>+ Log Appointment</button>
+    </div>
+    ${DB.appointments.length===0 ? emptyState('No appointments logged yet','Log a visit to start building the schedule and progress history.') : `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Appt ID</th><th>Patient ID</th><th>Patient</th><th>Day/Date</th><th>Session</th><th>Came</th>
+          <th>Subject</th><th>Procedure</th><th>Status</th><th>Next Visit</th><th>Next Procedure</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+/* ============================= CASES TAB ============================= */
+function caseFor(patientId){
+  return DB.cases.find(c=>c.patientId===patientId) || {patientId, preliminary:'',phase1:'',phase2:'',phase3:'',phase4:'',doc1:'Not Done',doc2:'Not Done',doc3:'Not Done',doc4:'Not Done',comments:''};
+}
+function proceduresForPatient(patientId){
+  return DB.appointments.filter(a=>a.patientId===patientId && a.procedure).map(a=>a.procedure).join(', ') || '—';
+}
+function datesForPatient(patientId){
+  return DB.appointments.filter(a=>a.patientId===patientId && a.dayDate).map(a=>fmtDate(a.dayDate)).join(', ') || '—';
+}
+function renderCases(){
+  const rows = DB.patients.map(p=>{
+    const c = caseFor(p.id);
+    return `<tr>
+      <td><strong>${escapeHtml(p.id)}</strong></td>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${escapeHtml(c.preliminary)||'—'}</td>
+      <td>${escapeHtml(c.phase1)||'—'}</td>
+      <td>${escapeHtml(c.phase2)||'—'}</td>
+      <td>${escapeHtml(c.phase3)||'—'}</td>
+      <td>${escapeHtml(c.phase4)||'—'}</td>
+      <td style="max-width:220px;">${escapeHtml(proceduresForPatient(p.id))}</td>
+      <td style="max-width:190px;">${escapeHtml(datesForPatient(p.id))}</td>
+      <td>${docBadge(c.doc1,'Case Approval')} ${docBadge(c.doc2,'Informed Consent')} ${docBadge(c.doc3,'Initial Tx Plan')} ${docBadge(c.doc4,'Final Tx Plan')}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" data-edit-case="${p.id}">Edit</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <h2>Cases</h2>
+    <div class="sub">General overview per patient — phases are free-text; Procedures &amp; Dates auto-pull from Appointments.</div>
+    ${DB.patients.length===0 ? emptyState('No patients yet','Add patients first — their case overview will appear here.') : `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>ID</th><th>Name</th><th>Preliminary</th><th>Phase I</th><th>Phase II</th><th>Phase III</th><th>Phase IV</th>
+          <th>Procedures (all)</th><th>Dates (all)</th><th>Documents</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`}
+  `;
+}
+
+/* ============================= CCC CHECKLIST TAB ============================= */
+let checklistOpen = {}; // patientId -> bool, which cards are expanded
+
+function checklistFor(patientId){
+  const arr = DB.checklists[patientId];
+  if(Array.isArray(arr) && arr.length===CHECKLIST_FLAT.length) return arr;
+  return new Array(CHECKLIST_FLAT.length).fill(false);
+}
+function checklistPct(patientId){
+  const arr = checklistFor(patientId);
+  const done = arr.filter(Boolean).length;
+  return { done, total: CHECKLIST_FLAT.length, pct: Math.round(done/CHECKLIST_FLAT.length*100) };
+}
+function renderChecklist(){
+  const cccPatients = DB.patients.filter(p=> cccEligibility(p).count >= 3);
+
+  if(cccPatients.length===0){
+    return `
+      <h2>CCC Checklist</h2>
+      <div class="sub">Only shows patients whose CCC Eligibility is 3 or more out of 5 \u2014 this checklist applies to CCC cases only.</div>
+      ${emptyState('No CCC cases yet','Once a patient reaches 3 of 5 present disciplines, their checklist appears here.')}
+    `;
+  }
+
+  const cards = cccPatients.map(p=>{
+    const isOpen = !!checklistOpen[p.id];
+    const { done, total, pct } = checklistPct(p.id);
+    const arr = checklistFor(p.id);
+    let itemIndex = 0;
+    const sections = CHECKLIST_SECTIONS.map(section=>{
+      const rows = section.items.map(text=>{
+        const idx = itemIndex++;
+        const checked = arr[idx];
+        const inputId = `chk-${p.id}-${idx}`;
+        return `<div class="checklist-item">
+          <input type="checkbox" id="${inputId}" data-checklist-toggle data-patient="${escapeHtml(p.id)}" data-index="${idx}" ${checked?'checked':''}>
+          <label for="${inputId}">${escapeHtml(text)}</label>
+        </div>`;
+      }).join('');
+      return `<div class="checklist-section"><h4>${escapeHtml(section.title)}</h4>${rows}</div>`;
+    }).join('');
+
+    return `<div class="checklist-patient">
+      <div class="checklist-patient-head" data-toggle-patient="${escapeHtml(p.id)}">
+        <div>
+          <div class="name">${escapeHtml(p.name)} <span class="meta">(${escapeHtml(p.id)})</span></div>
+          <div class="meta">${done} of ${total} items complete</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div class="checklist-pct">${pct}%</div>
+          <span class="chevron ${isOpen?'open':''}">&#9656;</span>
+        </div>
+      </div>
+      ${isOpen ? `<div class="checklist-body">${sections}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `
+    <h2>CCC Checklist</h2>
+    <div class="sub">For CCC cases only (CCC Eligibility 3+/5) \u2014 the full case-approval-to-closure checklist.</div>
+    ${cards}
+  `;
+}
+
+/* ============================= DASHBOARD TAB ============================= */
+function renderDashboard(){
+  const total = DB.patients.length;
+  const subjStats = {};
+  SUBJECTS.forEach(s=>{
+    let complete = 0;
+    DB.patients.forEach(p=>{
+      if(s==='Fixed') complete += fixedCompletedCount(p.id)>=1 ? 1:0;
+      else if(s==='Perio') complete += p.perioStatus==='Present' ? 1:0;
+      else if(s==='Removable') complete += (p.removableType==='Definitive'||p.removableType==='Single arch CD') ? 1:0;
+      else if(s==='Surgery') complete += p.surgery==='Yes' ? 1:0;
+      else if(s==='Pedo') complete += p.pedo==='Yes' ? 1:0;
+      else if(s==='Operative') complete += ((Number(p.operativeSurfaces)||0)>=8 && (Number(p.operativeClassCount)||0)>=2) ? 1:0;
+      else if(s==='Endo') complete += endoCompleted(p.id) ? 1:0;
+    });
+    subjStats[s] = { complete, incomplete: total-complete, pct: total? Math.round(complete/total*100):0 };
+  });
+
+  const examDone = DB.patients.filter(p=>p.examination==='Done').length;
+  const examNotYet = total - examDone;
+  const examPct = total? Math.round(examDone/total*100):0;
+
+  const cards = SUBJECTS.map(s=>{
+    const st = subjStats[s];
+    const isCCC = CCC_SUBJECTS.includes(s);
+    return `<div class="stat-card">
+      <div class="subject">${s} ${isCCC?'<span class="badge badge-neutral" style="font-size:10px;">CCC</span>':'<span class="badge badge-neutral" style="font-size:10px;">tracked</span>'}</div>
+      <div class="pct">${st.pct}%</div>
+      <div class="breakdown">${st.complete} complete · ${st.incomplete} incomplete</div>
+      <div class="bar"><div class="bar-fill" style="width:${st.pct}%"></div></div>
+    </div>`;
+  }).join('');
+
+  return `
+    <h2>Requirement Dashboard</h2>
+    <div class="sub">Live clinic-wide stats, computed from every patient's plan and completed appointments.</div>
+    <div class="pill-row">
+      <div class="pill">Total Patients <b>${total}</b></div>
+      <div class="pill">Exams Done <b>${examDone}</b></div>
+      <div class="pill">Exams Not Yet <b>${examNotYet}</b></div>
+      <div class="pill">% Exams Done <b>${examPct}%</b></div>
+    </div>
+    <div class="section-title">By discipline</div>
+    <div class="stat-grid">${cards}</div>
+    <div class="field-note">CCC eligibility counts only Fixed, Perio, Removable, Operative and Endo (need 3 of 5). Surgery and Pedo are tracked separately.</div>
+  `;
+}
+
+/* ============================= WEEKLY OVERVIEW TAB ============================= */
+function renderWeekly(){
+  const m = startOfCurrentWeek(), s = endOfCurrentWeek();
+  const fmt = (d)=>d.toLocaleDateString('en-US',{month:'long', day:'numeric', year:'numeric'});
+
+  const dueThisWeek = DB.appointments.filter(a=> isInCurrentWeek(a.dayDate) || isInCurrentWeek(a.nextVisit));
+  const dueRows = dueThisWeek.map(a=>{
+    const p = patientById(a.patientId);
+    const prog = p ? cccEligibility(p) : {count:0};
+    return `<div class="list-row">
+      <div>
+        <div class="name">${escapeHtml(patientName(a.patientId))} <span class="meta">(${escapeHtml(a.patientId)})</span></div>
+        <div class="meta">${escapeHtml(a.subject||'—')} · ${escapeHtml(a.procedure||'—')} · ${statusBadge(a.status)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="meta">${a.dayDate? 'Visit: '+fmtDate(a.dayDate):''} ${a.nextVisit? '· Next: '+fmtDate(a.nextVisit):''}</div>
+        <div class="meta">CCC Eligibility: ${prog.count}/5</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const needExam = DB.patients.filter(p=>p.examination!=='Done');
+  const needExamRows = needExam.map(p=>`<div class="list-row">
+      <div class="name">${escapeHtml(p.name)} <span class="meta">(${escapeHtml(p.id)})</span></div>
+      <div class="meta">Examination: ${escapeHtml(p.examination||'Not Yet')}</div>
+    </div>`).join('');
+
+  const missing = DB.patients.filter(p=>p.radiology!=='Yes' || p.photographs!=='Yes');
+  const missingRows = missing.map(p=>`<div class="list-row">
+      <div class="name">${escapeHtml(p.name)} <span class="meta">(${escapeHtml(p.id)})</span></div>
+      <div class="meta">Radiology: ${badge(p.radiology==='Yes')} &nbsp; Photographs: ${badge(p.photographs==='Yes')}</div>
+    </div>`).join('');
+
+  return `
+    <h2>Weekly Overview</h2>
+    <div class="week-range">Sunday–Saturday, auto-tracking the current week: <strong>${fmt(m)} – ${fmt(s)}</strong></div>
+
+    <div class="section-title">Appointments due this week</div>
+    ${dueThisWeek.length===0 ? emptyState('Nothing due this week','No appointments or follow-ups fall in this Sunday–Saturday window.') : `<div class="list-card">${dueRows}</div>`}
+
+    <div class="section-title">Patients still needing examination</div>
+    ${needExam.length===0 ? emptyState('All caught up','Every patient has completed their examination.') : `<div class="list-card">${needExamRows}</div>`}
+
+    <div class="section-title">Patients missing radiology or photographs</div>
+    ${missing.length===0 ? emptyState('All caught up','Every patient has radiology imaging and photographs on file.') : `<div class="list-card">${missingRows}</div>`}
+  `;
+}
+
+/* ============================= SMALL RENDER HELPERS ============================= */
+function badge(isYes, yesLabel='Yes', noLabel='No'){
+  return `<span class="badge ${isYes?'badge-yes':'badge-no'}">${isYes?yesLabel:noLabel}</span>`;
+}
+function badgeNeutral(text){
+  if(!text) return `<span class="badge badge-neutral">—</span>`;
+  return `<span class="badge badge-neutral">${escapeHtml(text)}</span>`;
+}
+function docBadge(status, label){
+  return `<span class="badge ${status==='Done'?'badge-yes':'badge-no'}" title="${escapeHtml(label||'Document')}: ${escapeHtml(status||'Not Done')}">${status==='Done'?'✓':'○'} ${escapeHtml(label||'')}</span>`;
+}
+function statusBadge(status){
+  const map = { 'Completed':'badge-yes','Cancelled':'badge-no','Referred':'badge-neutral','In Progress':'badge-neutral' };
+  return `<span class="badge ${map[status]||'badge-neutral'}">${escapeHtml(status||'—')}</span>`;
+}
+function emptyState(big, small){
+  return `<div class="empty"><span class="big">${escapeHtml(big)}</span>${escapeHtml(small)}</div>`;
+}
+function escapeHtml(str){
+  if(str===undefined || str===null) return '';
+  return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ============================= EVENT WIRING ============================= */
+function attachPanelHandlers(){
+  const addPatientBtn = document.getElementById('addPatientBtn');
+  if(addPatientBtn) addPatientBtn.onclick = ()=>{ editingModal = {type:'patient', id:null}; renderModal(); };
+
+  document.querySelectorAll('[data-edit-patient]').forEach(b=>{
+    b.onclick = ()=>{ editingModal = {type:'patient', id:b.dataset.editPatient}; renderModal(); };
+  });
+  document.querySelectorAll('[data-del-patient]').forEach(b=>{
+    b.onclick = async ()=>{
+      if(confirm('Delete this patient? Their appointments and case record stay but will be unlinked.')){
+        const id = b.dataset.delPatient;
+        DB.patients = DB.patients.filter(p=>p.id!==id);
+        delete DB.checklists[id];
+        await saveDB(); render();
+        await pushToSupabase('deletePatient', { id });
+      }
+    };
+  });
+
+  const addApptBtn = document.getElementById('addApptBtn');
+  if(addApptBtn) addApptBtn.onclick = ()=>{ editingModal = {type:'appointment', id:null}; renderModal(); };
+  document.querySelectorAll('[data-edit-appt]').forEach(b=>{
+    b.onclick = ()=>{ editingModal = {type:'appointment', id:b.dataset.editAppt}; renderModal(); };
+  });
+  document.querySelectorAll('[data-del-appt]').forEach(b=>{
+    b.onclick = async ()=>{
+      if(confirm('Delete this appointment?')){
+        const id = b.dataset.delAppt;
+        DB.appointments = DB.appointments.filter(a=>a.id!==id);
+        await saveDB(); render();
+        pushToSupabase('deleteAppointment', { id });
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-edit-case]').forEach(b=>{
+    b.onclick = ()=>{ editingModal = {type:'case', id:b.dataset.editCase}; renderModal(); };
+  });
+
+  // CCC Checklist tab
+  document.querySelectorAll('[data-toggle-patient]').forEach(el=>{
+    el.onclick = ()=>{
+      const id = el.dataset.togglePatient;
+      checklistOpen[id] = !checklistOpen[id];
+      render();
+    };
+  });
+  document.querySelectorAll('[data-checklist-toggle]').forEach(el=>{
+    el.onclick = async (e)=>{
+      e.stopPropagation();
+      const patientId = el.dataset.patient;
+      const idx = Number(el.dataset.index);
+      const arr = checklistFor(patientId).slice();
+      arr[idx] = el.checked;
+      DB.checklists[patientId] = arr;
+      await saveDB();
+      renderChecklistPctInPlace(patientId);
+      pushToSupabase('saveChecklist', { patientId, items: arr });
+    };
+  });
+}
+
+function renderChecklistPctInPlace(patientId){
+  // lightweight refresh of just this patient's card, so the checkbox keeps focus
+  const { done, total, pct } = checklistPct(patientId);
+  const head = document.querySelector(`[data-toggle-patient="${cssEscape(patientId)}"]`);
+  if(!head) return;
+  const metaEl = head.querySelector('.meta');
+  const pctEl = head.querySelector('.checklist-pct');
+  if(metaEl) metaEl.textContent = `${done} of ${total} items complete`;
+  if(pctEl) pctEl.textContent = `${pct}%`;
+}
+function cssEscape(str){
+  return String(str).replace(/["\\]/g, '\\$&');
+}
+
+/* ============================= MODAL (ADD/EDIT) ============================= */
+function renderModal(){
+  let existing = document.getElementById('modalRoot');
+  if(existing) existing.remove();
+  if(!editingModal) return;
+
+  const root = document.createElement('div');
+  root.id = 'modalRoot';
+  document.body.appendChild(root);
+
+  if(editingModal.type==='patient') root.innerHTML = patientModalHTML();
+  if(editingModal.type==='appointment') root.innerHTML = apptModalHTML();
+  if(editingModal.type==='case') root.innerHTML = caseModalHTML();
+
+  const overlay = root.querySelector('.overlay');
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay){ editingModal=null; renderModal(); } });
+  root.querySelectorAll('[data-close]').forEach(b=> b.onclick = ()=>{ editingModal=null; renderModal(); });
+
+  if(editingModal.type==='patient') wirePatientModal();
+  if(editingModal.type==='appointment') wireApptModal();
+  if(editingModal.type==='case') wireCaseModal();
+}
+
+function opts(list, selected){
+  return list.map(v=>`<option value="${escapeHtml(v)}" ${v===selected?'selected':''}>${escapeHtml(v)}</option>`).join('');
+}
+
+function patientModalHTML(){
+  const isEdit = !!editingModal.id;
+  const p = isEdit ? patientById(editingModal.id) : {
+    id:'', name:'', identification:'', examination:'Not Yet', radiology:'No', photographs:'No',
+    fixedPlanned:'1', perioStatus:'Not Present', removableType:'None', surgery:'No', pedo:'No',
+    operativeSurfaces:0, operativeClassCount:0, endoPlanned:'RCT', oralMedClearance:'No', comment:''
+  };
+  return `<div class="overlay"><div class="modal">
+    <h3>${isEdit? 'Edit Patient':'Add Patient'}</h3>
+    <div class="form-grid">
+      <div><label>Patient ID</label><input type="text" id="f-id" value="${escapeHtml(p.id)}" ${isEdit?'disabled':''} placeholder="e.g. P001"></div>
+      <div><label>Patient Name</label><input type="text" id="f-name" value="${escapeHtml(p.name)}" placeholder="Full name"></div>
+      <div><label>Identification</label><input type="text" id="f-idn" value="${escapeHtml(p.identification)}" placeholder="National ID / file no."></div>
+      <div><label>Examination</label><select id="f-exam">${opts(['Done','Not Yet'], p.examination)}</select></div>
+      <div><label>Radiology Imaging</label><select id="f-rad">${opts(['Yes','No'], p.radiology)}</select></div>
+      <div><label>Photographs</label><select id="f-photo">${opts(['Yes','No'], p.photographs)}</select></div>
+      <div><label>Oral Medicine Clearance</label><select id="f-oralmed">${opts(['Yes','No'], p.oralMedClearance)}</select></div>
+
+      <div><label>Fixed — Planned Units</label><select id="f-fixed">${opts(['0','1','2','3','4','5','6','7','8','9','10'], String(p.fixedPlanned))}</select></div>
+      <div><label>Perio — Status (12 teeth)</label><select id="f-perio">${opts(['Present','Not Present'], p.perioStatus)}</select></div>
+      <div><label>Removable — Type</label><select id="f-removable">${opts(['None','Definitive','Single arch CD','Transitional','CD both arches'], p.removableType)}</select></div>
+      <div><label>Surgery</label><select id="f-surgery">${opts(['Yes','No'], p.surgery)}</select></div>
+      <div><label>Pedo</label><select id="f-pedo">${opts(['Yes','No'], p.pedo)}</select></div>
+      <div><label>Endo — Planned Approach</label><select id="f-endo">${opts(['None','RCT','Emergency (ER)'], p.endoPlanned)}</select></div>
+      <div><label>Operative — Surfaces Done</label><input type="number" min="0" id="f-opsurf" value="${p.operativeSurfaces||0}"></div>
+      <div><label>Operative — Class II/III Count</label><input type="number" min="0" id="f-opclass" value="${p.operativeClassCount||0}"></div>
+
+      <div class="full"><label>Comment</label><textarea id="f-comment">${escapeHtml(p.comment)}</textarea></div>
+      <div class="full field-note">Fixed "units completed" and Endo "completion" are calculated automatically from Appointments tagged to this patient — no need to set them here.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close>Cancel</button>
+      <button class="btn btn-primary" id="savePatientBtn">${isEdit?'Save Changes':'Add Patient'}</button>
+    </div>
+  </div></div>`;
+}
+function wirePatientModal(){
+  document.getElementById('savePatientBtn').onclick = async ()=>{
+    const id = document.getElementById('f-id').value.trim();
+    const name = document.getElementById('f-name').value.trim();
+    if(!id || !name){ alert('Patient ID and Name are required.'); return; }
+    if(!editingModal.id && patientById(id)){ alert('A patient with this ID already exists.'); return; }
+
+    const data = {
+      id, name,
+      identification: document.getElementById('f-idn').value.trim(),
+      examination: document.getElementById('f-exam').value,
+      radiology: document.getElementById('f-rad').value,
+      photographs: document.getElementById('f-photo').value,
+      oralMedClearance: document.getElementById('f-oralmed').value,
+      fixedPlanned: document.getElementById('f-fixed').value,
+      perioStatus: document.getElementById('f-perio').value,
+      removableType: document.getElementById('f-removable').value,
+      surgery: document.getElementById('f-surgery').value,
+      pedo: document.getElementById('f-pedo').value,
+      endoPlanned: document.getElementById('f-endo').value,
+      operativeSurfaces: Number(document.getElementById('f-opsurf').value)||0,
+      operativeClassCount: Number(document.getElementById('f-opclass').value)||0,
+      comment: document.getElementById('f-comment').value,
+      lastUpdated: todayISO()
+    };
+
+    if(editingModal.id){
+      const idx = DB.patients.findIndex(p=>p.id===editingModal.id);
+      DB.patients[idx] = data;
+    } else {
+      DB.patients.push(data);
+    }
+    await saveDB();
+    editingModal = null;
+    render();
+    await pushToSupabase('savePatient', data);
+  };
+}
+
+function apptModalHTML(){
+  const isEdit = !!editingModal.id;
+  const a = isEdit ? DB.appointments.find(x=>x.id===editingModal.id) : {
+    id:'', patientId: DB.patients[0]?.id || '', dayDate:'', session:'Morning', came:'On Time',
+    subject:'Fixed', procedure:'', status:'In Progress', nextVisit:'', nextProcedure:'', comment:''
+  };
+  const procOptions = PROCEDURE_OPTIONS[a.subject] || [];
+  return `<div class="overlay"><div class="modal">
+    <h3>${isEdit? 'Edit Appointment':'Log Appointment'}</h3>
+    <div class="form-grid">
+      <div><label>Appt ID</label><input type="text" id="f-aid" value="${escapeHtml(a.id || uid('A'))}" ${isEdit?'disabled':''}></div>
+      <div><label>Patient</label><select id="f-pid">${DB.patients.map(p=>`<option value="${escapeHtml(p.id)}" ${p.id===a.patientId?'selected':''}>${escapeHtml(p.id)} — ${escapeHtml(p.name)}</option>`).join('')}</select></div>
+      <div><label>Day/Date</label><input type="date" id="f-date" value="${escapeHtml(a.dayDate)}"></div>
+      <div><label>Session</label><select id="f-session">${opts(['Morning','Afternoon'], a.session)}</select></div>
+      <div><label>Came</label><select id="f-came">${opts(['On Time','Late','DNA'], a.came)}</select></div>
+      <div><label>Subject</label><select id="f-subject">${opts(SUBJECTS, a.subject)}</select></div>
+      <div><label>Procedure</label><select id="f-procedure">${opts(procOptions, a.procedure)}</select></div>
+      <div><label>Status</label><select id="f-status">${opts(['Completed','Referred','In Progress','Cancelled'], a.status)}</select></div>
+      <div><label>Next Visit</label><input type="date" id="f-nextvisit" value="${escapeHtml(a.nextVisit)}"></div>
+      <div><label>Next Appointment Procedure</label><input type="text" id="f-nextproc" value="${escapeHtml(a.nextProcedure)}"></div>
+      <div class="full"><label>Comment</label><textarea id="f-acomment">${escapeHtml(a.comment)}</textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close>Cancel</button>
+      <button class="btn btn-primary" id="saveApptBtn">${isEdit?'Save Changes':'Log Appointment'}</button>
+    </div>
+  </div></div>`;
+}
+function wireApptModal(){
+  const subjectSelect = document.getElementById('f-subject');
+  subjectSelect.onchange = ()=>{
+    const procSelect = document.getElementById('f-procedure');
+    const options = PROCEDURE_OPTIONS[subjectSelect.value] || [];
+    procSelect.innerHTML = opts(options, options[0]);
+  };
+  document.getElementById('saveApptBtn').onclick = async ()=>{
+    const id = document.getElementById('f-aid').value.trim();
+    const patientId = document.getElementById('f-pid').value;
+    if(!patientId){ alert('Add a patient first.'); return; }
+    const data = {
+      id,
+      patientId,
+      dayDate: document.getElementById('f-date').value,
+      session: document.getElementById('f-session').value,
+      came: document.getElementById('f-came').value,
+      subject: document.getElementById('f-subject').value,
+      procedure: document.getElementById('f-procedure').value,
+      status: document.getElementById('f-status').value,
+      nextVisit: document.getElementById('f-nextvisit').value,
+      nextProcedure: document.getElementById('f-nextproc').value,
+      comment: document.getElementById('f-acomment').value,
+    };
+    if(editingModal.id){
+      const idx = DB.appointments.findIndex(x=>x.id===editingModal.id);
+      DB.appointments[idx] = data;
+    } else {
+      DB.appointments.push(data);
+    }
+    await saveDB();
+    editingModal = null;
+    render();
+    await pushToSupabase('saveAppointment', data);
+  };
+}
+
+function caseModalHTML(){
+  const patientId = editingModal.id;
+  const p = patientById(patientId);
+  const c = caseFor(patientId);
+  return `<div class="overlay"><div class="modal">
+    <h3>Case — ${escapeHtml(p.name)} (${escapeHtml(p.id)})</h3>
+    <div class="form-grid">
+      <div class="full"><label>Preliminary Phase</label><textarea id="f-prelim">${escapeHtml(c.preliminary)}</textarea></div>
+      <div><label>Phase I</label><textarea id="f-p1">${escapeHtml(c.phase1)}</textarea></div>
+      <div><label>Phase II</label><textarea id="f-p2">${escapeHtml(c.phase2)}</textarea></div>
+      <div><label>Phase III</label><textarea id="f-p3">${escapeHtml(c.phase3)}</textarea></div>
+      <div><label>Phase IV</label><textarea id="f-p4">${escapeHtml(c.phase4)}</textarea></div>
+      <div><label>Case Approval</label><select id="f-doc1">${opts(['Done','Not Done'], c.doc1)}</select></div>
+      <div><label>Informed Consent</label><select id="f-doc2">${opts(['Done','Not Done'], c.doc2)}</select></div>
+      <div><label>Initial Treatment Plan</label><select id="f-doc3">${opts(['Done','Not Done'], c.doc3)}</select></div>
+      <div><label>Final Treatment Plan</label><select id="f-doc4">${opts(['Done','Not Done'], c.doc4)}</select></div>
+      <div class="full"><label>Comments</label><textarea id="f-ccomment">${escapeHtml(c.comments)}</textarea></div>
+      <div class="full field-note">Procedures and Dates are pulled automatically from Appointments and shown in the Cases table — nothing to fill in for those here.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close>Cancel</button>
+      <button class="btn btn-primary" id="saveCaseBtn">Save Case</button>
+    </div>
+  </div></div>`;
+}
+function wireCaseModal(){
+  document.getElementById('saveCaseBtn').onclick = async ()=>{
+    const patientId = editingModal.id;
+    const data = {
+      patientId,
+      preliminary: document.getElementById('f-prelim').value,
+      phase1: document.getElementById('f-p1').value,
+      phase2: document.getElementById('f-p2').value,
+      phase3: document.getElementById('f-p3').value,
+      phase4: document.getElementById('f-p4').value,
+      doc1: document.getElementById('f-doc1').value,
+      doc2: document.getElementById('f-doc2').value,
+      doc3: document.getElementById('f-doc3').value,
+      doc4: document.getElementById('f-doc4').value,
+      comments: document.getElementById('f-ccomment').value,
+    };
+    const idx = DB.cases.findIndex(c=>c.patientId===patientId);
+    if(idx>=0) DB.cases[idx] = data; else DB.cases.push(data);
+    await saveDB();
+    editingModal = null;
+    render();
+    await pushToSupabase('saveCase', data);
+  };
+}
+
+/* ============================= TABS ============================= */
+document.getElementById('tabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-tab]');
+  if(!btn) return;
+  activeTab = btn.dataset.tab;
+  render();
+});
+
+/* ============================= INIT ============================= */
+(async function init(){
+  initSupabaseClient();
+  await checkSession();
+  renderShell();
+})();
+</script>
+</body>
+</html>
